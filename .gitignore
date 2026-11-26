@@ -3,3 +3,6 @@
 .Rproj.user/
 .quarto/
 *.knit.md
+
+/.quarto/
+**/*.quarto_ipynb
