@@ -1,0 +1,121 @@
+/* Portfolio-ready academic styling for Quarto HTML report */
+
+body {
+  color: #1e293b;
+  line-height: 1.65;
+}
+
+.quarto-title-block .quarto-title-banner {
+  margin-bottom: 1.5rem;
+}
+
+h1.title {
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.subtitle.lead {
+  color: #475569;
+  font-size: 1.15rem;
+  margin-top: 0.35rem;
+}
+
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin: 1.25rem 0 1.75rem 0;
+}
+
+.action-btn {
+  display: inline-block;
+  padding: 0.5rem 0.95rem;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1px solid #cbd5e1;
+  color: #0f172a;
+  background-color: #f8fafc;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.action-btn:hover {
+  background-color: #e2e8f0;
+  border-color: #94a3b8;
+  color: #0f172a;
+}
+
+.action-btn-primary {
+  background-color: #1e3a8a;
+  border-color: #1e3a8a;
+  color: #ffffff;
+}
+
+.action-btn-primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin: 1.25rem 0 1.75rem 0;
+}
+
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kpi-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-top: 3px solid #1e3a8a;
+  border-radius: 8px;
+  padding: 0.95rem 1.05rem;
+}
+
+.kpi-card.kpi-warn {
+  border-top-color: #dc2626;
+}
+
+.kpi-label {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.kpi-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.2;
+}
+
+.kpi-note {
+  font-size: 0.82rem;
+  color: #475569;
+  margin-top: 0.35rem;
+}
+
+table {
+  font-size: 0.92rem;
+}
+
+th {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+.figure-caption {
+  color: #475569;
+  font-size: 0.9rem;
+}

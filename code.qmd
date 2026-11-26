@@ -1,0 +1,25 @@
+---
+title: "Replication & Sensitivity Analysis R Code"
+subtitle: "Reproducible script powering the POLI 100X web report"
+format:
+  html:
+    page-layout: article
+---
+
+This page contains the portable R script ([`Code/replication_analysis.R`](Code/replication_analysis.R)) used to generate all tables, statistics, and figures in the [replication report](index.html).
+
+## Requirements
+
+* R ($\ge 4.1$) with `tidyverse`, `estimatr`, and `scales`
+* Input dataset: `Data/butler_nickerson_clean.csv`
+
+To reproduce all console outputs locally from the project root:
+
+```bash
+Rscript Code/replication_analysis.R
+```
+
+## Full Script (`Code/replication_analysis.R`)
+
+```{r echo=TRUE, eval=FALSE, file="Code/replication_analysis.R"}
+```

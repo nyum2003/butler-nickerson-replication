@@ -1,0 +1,37 @@
+project:
+  type: website
+  output-dir: docs
+  resources:
+    - assets/POLI100X_Replication_Report.pdf
+    - Code/replication_analysis.R
+  render:
+    - index.qmd
+    - code.qmd
+
+website:
+  title: "POLI 100X Replication"
+  description: "Replication and matched-pair sensitivity analysis of Butler & Nickerson (2011)"
+  navbar:
+    background: "#0f172a"
+    foreground: "#f8fafc"
+    left:
+      - text: "Report"
+        href: index.qmd
+      - text: "View R Code"
+        href: code.qmd
+    right:
+      - text: "Download PDF"
+        href: assets/POLI100X_Replication_Report.pdf
+      - text: "Original Study (DOI)"
+        href: https://doi.org/10.1561/100.00011019
+
+format:
+  html:
+    theme: cosmo
+    css: styles.css
+    toc: true
+    toc-depth: 3
+    toc-title: "On this page"
+    smooth-scroll: true
+    code-copy: true
+    link-external-newwindow: true

@@ -1,0 +1,260 @@
+---
+title: "Do Legislators Change Their Votes When They See District Polling?"
+subtitle: "A replication and matched-pair sensitivity analysis of Butler & Nickerson (2011)"
+author: "Nolan Yumiaco · Department of Political Science, UC San Diego (POLI 100X)"
+date: "2026-05-27"
+format:
+  html:
+    page-layout: article
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE,
+  warning = FALSE,
+  message = FALSE
+)
+source("Code/replication_analysis.R")
+
+# Helper to format regression comparison tables cleanly
+format_reg_table <- function(mod1, mod2, col1_name = "M1 (No Controls)", col2_name = "M2 (With Controls)") {
+  terms_order <- c("treatment", "low_support", "flt", "rep", "dem_pres_2party", "(Intercept)")
+  term_labels <- c(
+    treatment = "Treatment (High-Support Baseline)",
+    low_support = "Low-Support District",
+    flt = "Treatment × Low Support (FLT)",
+    rep = "Republican Legislator (rep)",
+    dem_pres_2party = "2004 Dem. Presidential Vote Share",
+    `(Intercept)` = "Intercept"
+  )
+
+  t1 <- tidy(mod1)
+  t2 <- tidy(mod2)
+
+  fmt_cell <- function(df_tidy, trm) {
+    row <- df_tidy |> filter(term == trm)
+    if (nrow(row) == 0) return("—")
+    stars <- dplyr::case_when(
+      row$p.value < 0.01 ~ "***",
+      row$p.value < 0.05 ~ "**",
+      row$p.value < 0.10 ~ "*",
+      TRUE ~ ""
+    )
+    sprintf("%.5f%s (SE %.5f, p = %.4f)", row$estimate, stars, row$std.error, row$p.value)
+  }
+
+  coef_rows <- map_dfr(terms_order, function(trm) {
+    tibble(
+      Term = term_labels[[trm]],
+      M1 = fmt_cell(t1, trm),
+      M2 = fmt_cell(t2, trm)
+    )
+  })
+
+  f1 <- summary(mod1)$fstatistic
+  f2 <- summary(mod2)$fstatistic
+  p_f1 <- pf(f1[1], f1[2], f1[3], lower.tail = FALSE)
+  p_f2 <- pf(f2[1], f2[2], f2[3], lower.tail = FALSE)
+
+  stat_rows <- tibble(
+    Term = c("Observations (N)", "Matched-Pair Clusters", "Adjusted R²", "Model F-Test p-value"),
+    M1 = c(
+      as.character(mod1$nobs),
+      as.character(mod1$nclusters),
+      sprintf("%.4f", mod1$adj.r.squared),
+      formatC(p_f1, format = "g", digits = 4)
+    ),
+    M2 = c(
+      as.character(mod2$nobs),
+      as.character(mod2$nclusters),
+      sprintf("%.4f", mod2$adj.r.squared),
+      formatC(p_f2, format = "g", digits = 4)
+    )
+  )
+
+  out <- bind_rows(coef_rows, stat_rows)
+  names(out) <- c("Variable / Statistic", col1_name, col2_name)
+  out
+}
+
+m2_flt <- coef(m2)[["flt"]]
+m2_trt <- coef(m2)[["treatment"]]
+m2_low_total <- m2_flt + m2_trt
+m2_drop_flt <- coef(m2_drop)[["flt"]]
+m2_drop_p <- tidy(m2_drop) |> filter(term == "flt") |> pull(p.value)
+loo_min <- min(leave_one_out$flt_coef)
+loo_max <- max(leave_one_out$flt_coef)
+```
+
+<div class="action-bar">
+  <a class="action-btn action-btn-primary" href="code.html">View R Code</a>
+  <a class="action-btn" href="assets/POLI100X_Replication_Report.pdf" target="_blank">Download Original PDF</a>
+  <a class="action-btn" href="https://doi.org/10.1561/100.00011019" target="_blank">Butler &amp; Nickerson (2011)</a>
+  <a class="action-btn" href="https://doi.org/10.60600/YU/QVCG0C" target="_blank">Yale ISPS Replication Data</a>
+</div>
+
+## Executive Summary
+
+This project replicates [Butler and Nickerson (2011)](https://doi.org/10.1561/100.00011019), who conducted a randomized field experiment in the New Mexico House of Representatives to test whether giving legislators district-level public opinion polling changes how they vote on a proposed tax-rebate spending bill (SB-24). Legislators in the control group largely defaulted to voting **yes**, even when their constituents opposed the proposal. Legislators who received district polling data in **low-support** districts were substantially more likely to vote **no**.
+
+Using linear probability models (`lm_robust`) with CR2 standard errors clustered by matched pair, our replication recovers results closely aligned with the original study's probit estimates. To test whether the headline finding is driven by a handful of observations in this small sample ($N = 67$ voting legislators across $35$ matched pairs), we extend the analysis with two matched-pair sensitivity checks:
+
+1. **Leave-one-pair-out loop (Approach 1):** Dropping one matched pair at a time keeps the treatment × low-support interaction (`FLT`) negative in **every single iteration** (`r sprintf("%.1f", 100 * loo_min)` to `r sprintf("%.1f", 100 * loo_max)` percentage points).
+2. **Omitting the two most influential pairs together (Approach 2):** Removing Pairs `21` and `32` attenuates the controlled `FLT` interaction from **`r sprintf("%.1f", 100 * m2_flt)` pp** ($p = 0.053$) to **`r sprintf("%.1f", 100 * m2_drop_flt)` pp** ($p = `r sprintf("%.3f", m2_drop_p)`$), showing that while the sign stays negative, the magnitude and statistical precision of the controlled interaction are sensitive to these two pairs.
+
+<div class="kpi-grid">
+<div class="kpi-card">
+<div class="kpi-label">Full-Sample Interaction (M2 FLT)</div>
+<div class="kpi-value">`r sprintf("%.1f pp", 100 * m2_flt)`</div>
+<div class="kpi-note">SE = 0.1453, p = 0.053 (N = 67, 35 pairs)</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-label">Low-Support Treatment Effect</div>
+<div class="kpi-value">`r sprintf("%.1f pp", 100 * m2_low_total)`</div>
+<div class="kpi-note">Treatment + FLT in low-support districts</div>
+</div>
+<div class="kpi-card">
+<div class="kpi-label">Leave-One-Pair-Out Range</div>
+<div class="kpi-value">`r sprintf("%.1f to %.1f pp", 100 * loo_min, 100 * loo_max)`</div>
+<div class="kpi-note">Negative across all 35 matched-pair omissions</div>
+</div>
+<div class="kpi-card kpi-warn">
+<div class="kpi-label">Drop Top 2 Pairs (21 &amp; 32)</div>
+<div class="kpi-value">`r sprintf("%.1f pp", 100 * m2_drop_flt)`</div>
+<div class="kpi-note">SE = 0.1230, p = 0.202 (N = 63, 33 pairs)</div>
+</div>
+</div>
+
+### Key Sensitivity Finding: Leave-One-Pair-Out Plot
+
+```{r fig-loo, fig.width=9.5, fig.height=5.2, dpi=300}
+loo_plot
+```
+
+*Note: Each point plots the estimated `FLT` interaction coefficient from Model 2 (`sb24 ~ treatment + flt + low_support + rep + dem_pres_2party`) after omitting one matched pair, with CR2 95% confidence intervals clustered by `match_category`. Omitting Pair 32 alone yields the largest upward shift, moving `FLT` from `−29.3 pp` to `−21.0 pp` ($p = 0.109$).*
+
+---
+
+## Experimental Design & Data
+
+Butler and Nickerson studied $70$ New Mexico House legislators organized into **$35$ matched pairs** (`match_category` `1`–`35`) based on party affiliation, re-election timing, and 2004 election vote share prior to the vote on SB-24. Within each pair, one legislator was randomly assigned to treatment (`treatment = 1`) and the other to control (`treatment = 0`):
+
+* **Treatment:** On Friday, August 15, 2008, treated legislators received a physical letter on Yale University letterhead reporting district-level polling results from a $10,690$-respondent statewide survey, backed up by an email with identical content.
+* **Outcome (`sb24`):** Roll-call vote on SB-24 (`1` = voted yes, `0` = voted no). Three legislators in the dataset (`match_category` `1`, `10`, and `22`, all control-group members) were excused or have missing votes, leaving **$N = 67$ observed votes** across **$35$ clusters**.
+* **Low-Support Moderator (`low_support`):** Indicator equal to `1` if district support (`q2full`) was at or below the sample median, and `0` otherwise.
+* **Interaction Term (`flt = treatment * low_support`):** Measures how the estimated treatment effect *differs* between low-support and high-support districts. In the regression model:
+  * `treatment` estimates the treatment effect in **high-support** districts (`low_support = 0`).
+  * `flt` estimates the **difference** in treatment effect between low- and high-support districts.
+  * `treatment + flt` gives the total estimated treatment effect in **low-support** districts.
+
+```{r tbl-summary}
+summary_stats |>
+  mutate(
+    Mean = sprintf("%.4f", Mean),
+    SD = sprintf("%.4f", SD),
+    Min = sprintf("%.4f", Min),
+    Max = sprintf("%.4f", Max)
+  ) |>
+  knitr::kable(
+    caption = "Summary statistics for primary variables in butler_nickerson_clean.csv (70 total rows; 67 non-missing SB-24 votes)."
+  )
+```
+
+---
+
+## Replication Regression Results
+
+We estimate two linear probability models (OLS with CR2 matched-pair cluster-robust standard errors):
+
+* **Model 1 (`M1`, no controls):** `sb24 ~ treatment + flt + low_support`
+* **Model 2 (`M2`, with controls):** `sb24 ~ treatment + flt + low_support + rep + dem_pres_2party`
+
+```{r tbl-main-reg}
+knitr::kable(
+  format_reg_table(m1, m2),
+  caption = "Replication LPM regression estimates with CR2 standard errors clustered by matched pair (* p < 0.10, ** p < 0.05, *** p < 0.01)."
+)
+```
+
+### Interpreting the Baseline vs. Controlled Estimates
+
+1. **Minimal effect in high-support districts:** In `M2`, the `treatment` coefficient is `-0.01865` (SE `0.08262`, $p = 0.824$), indicating essentially no change in voting behavior when treated legislators already represented high-support districts.
+2. **Large negative shift in low-support districts:** The interaction `flt` is **`-0.41877`** ($p = 0.018$) in `M1` and **`-0.29334`** ($p = 0.053$) in `M2`. Combining `treatment + flt` in `M2` implies an estimated **`-31.2 percentage-point`** drop in the probability of voting yes on SB-24 when a legislator in a low-support district is shown district polling.
+3. **Why controls matter:** Adding legislator party (`rep = -0.42003`, $p = 0.007$) and district 2004 Democratic presidential vote share (`dem_pres_2party = 0.45068`) substantially increases explanatory power (Adjusted $R^2$ rises from `0.0577` to `0.4004`) and reduces the magnitude of `flt` by roughly 12.5 percentage points compared to the uncontrolled specification.
+
+---
+
+## Matched-Pair Sensitivity Analysis
+
+Because the experiment relies on $67$ observed votes across $35$ matched pairs, a small number of pairs could exert heavy leverage on the interaction estimate.
+
+### Approach 1: Iterative Leave-One-Pair-Out Check
+
+Across all $35$ iterations omitting one `match_category` pair from `M2`:
+
+* **Every estimate remains negative**, ranging from **`-0.354`** (when dropping Pair `25`, $p = 0.016$) to **`-0.210`** (when dropping Pair `32`, $p = 0.109$).
+* The median leave-one-out `FLT` coefficient is **`r sprintf("%.4f", median(leave_one_out$flt_coef))`**, nearly identical to the full-sample `M2` estimate of `-0.29334`.
+* **Pairs `32` and `21`** produce the two largest upward shifts (weakening the negative interaction the most when omitted).
+
+```{r tbl-loo-extremes}
+top_up <- leave_one_out |>
+  arrange(desc(flt_coef)) |>
+  slice_head(n = 5) |>
+  mutate(Direction = "Weakens FLT most (least negative)")
+
+top_down <- leave_one_out |>
+  arrange(flt_coef) |>
+  slice_head(n = 5) |>
+  mutate(Direction = "Strengthens FLT most (most negative)")
+
+bind_rows(top_up, top_down) |>
+  transmute(
+    Direction,
+    `Dropped Pair` = dropped_pair,
+    N = nobs,
+    Clusters = nclusters,
+    `FLT Estimate` = sprintf("%.5f", flt_coef),
+    `CR2 SE` = sprintf("%.5f", flt_se),
+    `p-value` = sprintf("%.4f", p_value)
+  ) |>
+  knitr::kable(
+    caption = "Most influential matched pairs in the leave-one-pair-out sensitivity check (Model 2)."
+  )
+```
+
+### Approach 2: Dropping Pairs 21 and 32 Together
+
+Next, we re-estimate both `M1` and `M2` after simultaneously excluding the two most influential pairs (`match_category` `21` and `32`), leaving **$N = 63$ observations** across **$33$ matched-pair clusters**.
+
+```{r tbl-drop-reg}
+knitr::kable(
+  format_reg_table(
+    m1_drop,
+    m2_drop,
+    col1_name = "M1 (Drop Pairs 21 & 32)",
+    col2_name = "M2 (Drop Pairs 21 & 32)"
+  ),
+  caption = "Sensitivity regression estimates after omitting matched pairs 21 and 32 (* p < 0.10, ** p < 0.05, *** p < 0.01)."
+)
+```
+
+* In **`M1` (no controls)**, `flt` moves modestly from `-0.41877` to **`-0.36315`** ($p = 0.041$), remaining statistically significant at the 5% level.
+* In **`M2` (with controls)**, `flt` attenuates from `-0.29334` ($p = 0.053$) to **`-0.16119`** ($p = 0.202$), while `treatment` shifts from `-0.01865` to `-0.07048`.
+
+This demonstrates an important nuance for interpreting small-$N$ field experiments: the directional conclusion (polling reduces yes votes in low-support districts) holds across every single-pair deletion and even under joint deletion of the two most influential pairs, **but** the statistical significance and magnitude of the controlled interaction rely noticeably on Pairs `21` and `32`.
+
+---
+
+## Limitations & Methodological Notes
+
+* **Sample size and statistical power:** Dropping two pairs removes 4 of 70 legislators (leaving $N = 63$ observed votes). Removing the two pairs most supportive of the hypothesis naturally reduces precision and does not prove a null effect, but it highlights how sensitive small-sample interaction estimates can be.
+* **External validity:** The experiment tested one straightforward fiscal bill (tax rebate SB-24) in a single state legislature (New Mexico). Legislators may respond differently on salient, partisan, or socially controversial issues.
+* **Non-compliance / trustee behavior:** Receiving a letter or email does not guarantee a legislator read it or chose to act as a delegate rather than a trustee.
+* **Reconciliation note vs. original class PDF:** All tables, statistics, and plots on this page are rendered dynamically from [`Code/replication_analysis.R`](code.html). Compared to the original [class PDF report](assets/POLI100X_Replication_Report.pdf), this web edition preserves the exact coefficient estimates while correcting minor transcription typos in the PDF tables (specifically: Full M2 `Clusters = 35` instead of `45`; and the Drop-21-&-32 table title `"Drop Pairs 21 and 32"` instead of `"31 and 52"`, with `N = 63`, `Clusters = 33`, and M2 Adjusted $R^2 = 0.4869`).
+
+---
+
+## References
+
+* Butler, Daniel M., and David W. Nickerson. 2011. "Can Learning Constituency Opinion Affect How Legislators Vote? Results from a Field Experiment." *Quarterly Journal of Political Science* 6(1): 55–83. <https://doi.org/10.1561/100.00011019>
+* Butler, Daniel M., and David W. Nickerson. Replication Data, Yale Institution for Social and Policy Studies (ISPS) Data Archive / Yale Dataverse. <https://doi.org/10.60600/YU/QVCG0C>
